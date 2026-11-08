@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tars · Conferma</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
+  <style>
+    :root {
+      --fondo: #0b1410;
+      --carta: #14211b;
+      --riga: #263a31;
+      --testo: #f1f6f2;
+      --tenue: #9db3a7;
+      --palla: #ddf54a;
+      --terra: #e0703c;
+      --errore: #ff7a6b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: radial-gradient(1200px 600px at 50% -10%, #1f3a2b 0%, var(--fondo) 60%);
+      color: var(--testo);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px;
+    }
+    .carta {
+      width: 100%; max-width: 420px;
+      background: var(--carta);
+      border: 1px solid var(--riga);
+      border-radius: 26px;
+      padding: 30px 24px 26px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+    .logo { font-weight: 900; letter-spacing: 6px; color: var(--palla); font-size: 13px; }
+    .campo {
+      width: 120px; height: 86px; margin: 18px auto 6px; position: relative;
+    }
+    .campo .terreno {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+      background: linear-gradient(#2f6fb0, #3f86cc);
+      clip-path: polygon(16% 0, 84% 0, 100% 100%, 0 100%);
+      border-radius: 4px;
+    }
+    .campo .rete {
+      position: absolute; left: 6%; right: 6%; bottom: 22px; height: 2px; background: #fff;
+    }
+    .campo .palla {
+      position: absolute; left: 50%; bottom: 14px; width: 26px; height: 26px; margin-left: -13px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f4ff8a, var(--palla) 55%, #a9c21c);
+      animation: salta .9s cubic-bezier(.3,0,.7,1) infinite;
+    }
+    @keyframes salta {
+      0%, 100% { transform: translateY(0) scale(1.15, .85); }
+      10% { transform: translateY(-6px) scale(1, 1); }
+      50% { transform: translateY(-46px) scale(1, 1); }
+      90% { transform: translateY(-6px) scale(1, 1); }
+    }
+    @media (prefers-reduced-motion: reduce) { .campo .palla { animation: none; } }
+    h1 { font-size: 22px; margin: 10px 0 8px; }
+    p { color: var(--tenue); font-size: 15px; line-height: 1.5; margin: 0 0 18px; }
+    .ok h1 { color: var(--palla); }
+    .no h1 { color: var(--errore); }
+    input {
+      width: 100%; padding: 14px 16px; border-radius: 14px;
+      border: 1px solid var(--riga); background: #0f1a15; color: var(--testo);
+      font-size: 16px; margin-bottom: 10px;
+    }
+    input:focus { outline: none; border-color: var(--palla); }
+    .bottone {
+      display: block; width: 100%; padding: 15px; border: 0; border-radius: 16px;
+      background: var(--palla); color: #000; font-weight: 800; font-size: 16px;
+      text-decoration: none; cursor: pointer; margin-top: 6px;
+    }
+    .bottone[disabled] { opacity: .5; cursor: default; }
+    .secondario {
+      display: block; margin-top: 12px; color: var(--tenue); font-size: 14px; text-decoration: none;
+    }
+    .errore { color: var(--errore); font-size: 13.5px; min-height: 18px; margin: 4px 0 6px; }
+    .nascosto { display: none; }
+  </style>
+</head>
+<body>
+  <main class="carta" id="carta">
+    <div class="logo">TARS</div>
+    <div class="campo" aria-hidden="true">
+      <div class="terreno"></div>
+      <div class="rete"></div>
+      <div class="palla"></div>
+    </div>
+    <h1 id="titolo">Un attimo…</h1>
+    <p id="testo">Sto controllando il link.</p>
+
+    <!-- Nuova password -->
+    <form id="formPassword" class="nascosto" autocomplete="off">
+      <input id="pw1" type="password" placeholder="Nuova password (almeno 6 caratteri)" minlength="6" required>
+      <input id="pw2" type="password" placeholder="Ripeti la password" minlength="6" required>
+      <div class="errore" id="erroreForm"></div>
+      <button class="bottone" id="salva" type="submit">Salva la nuova password</button>
+    </form>
+
+    <a class="bottone nascosto" id="apriApp" href="#">Apri Tars</a>
+    <a class="secondario" href="https://hawkingsapp.github.io/tars/">hawkingsapp.github.io/tars</a>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script>
+    // La pagina che apre i link delle email di Firebase (verifica dell'email,
+    // nuova password, ripristino dell'email). Firebase la chiama con
+    // ?mode=...&oobCode=...&apiKey=...: la chiave arriva nel link, qui non
+    // c'e' niente da configurare.
+    const q = new URLSearchParams(location.search);
+    const mode = q.get('mode');
+    const code = q.get('oobCode');
+    const apiKey = q.get('apiKey');
+    const continua = q.get('continueUrl');
+
+    const $ = (id) => document.getElementById(id);
+    function mostra(stato, titolo, testo) {
+      $('carta').classList.remove('ok', 'no');
+      if (stato) $('carta').classList.add(stato);
+      $('titolo').textContent = titolo;
+      $('testo').textContent = testo;
+    }
+    function bottoneApp() {
+      const a = $('apriApp');
+      a.href = continua || 'https://hawkingsapp.github.io/tars/';
+      a.classList.remove('nascosto');
+    }
+    function errore(e) {
+      const c = (e && e.code) || '';
+      if (c.includes('expired')) {
+        mostra('no', 'Link scaduto', 'Questo link non vale più. Dall\'app richiedine uno nuovo.');
+      } else if (c.includes('invalid-action-code')) {
+        mostra('no', 'Link già usato', 'Questo link è già stato usato o non è valido. Se hai già confermato, entra pure in Tars.');
+      } else {
+        mostra('no', 'Qualcosa non va', 'Non riesco a completare l\'operazione. Riprova dall\'app.');
+      }
+      bottoneApp();
+    }
+
+    if (!mode || !code || !apiKey) {
+      mostra('no', 'Link incompleto', 'Apri il link direttamente dalla email che ti abbiamo mandato.');
+      bottoneApp();
+    } else {
+      firebase.initializeApp({ apiKey });
+      const auth = firebase.auth();
+      auth.languageCode = 'it';
+
+      if (mode === 'verifyEmail') {
+        auth.applyActionCode(code).then(() => {
+          mostra('ok', 'Email confermata!', 'Il tuo account Tars è attivo. Torna nell\'app e accedi con la tua email e password.');
+          bottoneApp();
+        }).catch(errore);
+
+      } else if (mode === 'resetPassword') {
+        auth.verifyPasswordResetCode(code).then((email) => {
+          mostra('', 'Nuova password', 'Scegli la nuova password per ' + email + '.');
+          $('formPassword').classList.remove('nascosto');
+          $('formPassword').addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const a = $('pw1').value, b = $('pw2').value;
+            if (a.length < 6) { $('erroreForm').textContent = 'Almeno 6 caratteri.'; return; }
+            if (a !== b) { $('erroreForm').textContent = 'Le due password non sono uguali.'; return; }
+            $('salva').disabled = true;
+            auth.confirmPasswordReset(code, a).then(() => {
+              $('formPassword').classList.add('nascosto');
+              mostra('ok', 'Password cambiata', 'Torna in Tars e accedi con la nuova password.');
+              bottoneApp();
+            }).catch((e) => { $('salva').disabled = false; errore(e); });
+          });
+        }).catch(errore);
+
+      } else if (mode === 'recoverEmail') {
+        auth.checkActionCode(code).then((info) => {
+          return auth.applyActionCode(code).then(() => {
+            mostra('ok', 'Email ripristinata', 'Il tuo account usa di nuovo ' + info.data.email + '. Se non sei stato tu a cambiarla, cambia anche la password.');
+            bottoneApp();
+          });
+        }).catch(errore);
+
+      } else {
+        mostra('no', 'Link non riconosciuto', 'Apri il link direttamente dalla email.');
+        bottoneApp();
+      }
+    }
+  </script>
+</body>
+</html>
